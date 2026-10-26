@@ -129,7 +129,7 @@ Trained machine learning models are available in `model/fira_models.zip`
 | `grid_lat`          | Latitude of gridded FRP prediction (degree)                            |
 | `grid_lon`          | Longitude of gridded FRP prediction (degree)                           |
 
-## Citation
+## Reference
 
 Hung et al. (2025). Fire Intensity and spRead forecAst (FIRA): A machine learning based fire spread prediction model for air quality forecasting application. GeoHealth, 9, e2024GH001253. https://doi.org/10.1029/2024GH001253.
 
