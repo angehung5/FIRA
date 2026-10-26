@@ -1,33 +1,39 @@
-frp_input    = rave.frp.conus
-model_input  = fire.init.conus
-model_output = fire.pred.conus
+frp_input=rave.frp.conus
+model_input=fire.init.conus
+model_output=fire.pred.conus
 
-frp_source = 0
+frp_source=0
+mete_source=0
 
-time_start = 202407272300
-time_end   = 202407282200
-time_freq  = 1
+time_start=202008201200
+time_end=202008211100
+time_freq=1
 
-lat_lower_left  = 0
-lat_upper_right = 82
-lon_lower_left  = 140
-lon_upper_right = 335
+lat_lower_left=37
+lat_upper_right=42
+lon_lower_left=235
+lon_upper_right=240
 
-opt_frpgen     = 1
-opt_inputgen   = 1
-opt_forecast   = 1
-opt_intensity  = 1
-opt_mapgen     = 1
-opt_evaluation = 1
+opt_frpgen=True
+opt_inputgen=True
+opt_forecast=True
+opt_intensity=True
+opt_mapgen=True
+opt_evaluation=True
 
-man_fire = 0
-man_lat  = 38.68
-man_lon  = -78.35
-man_lvl  = 200
+min_spread_thres=0.2
+fuel_consume=True
+fuel_max=1
+fuel_min=0
 
-path_frp  = /scratch/whung/fire_alarm/rave
-path_elv  = /groups/ESS/whung/Alldata/GMCollections
-path_ast  = /groups/ESS/whung/Alldata/VIIRS_AST
-path_fh   = /groups/ESS/whung/Alldata/GLAD_FH
-path_vhi  = /groups/ESS/whung/Alldata/VIIRS_VHP
-path_mete = /scratch/whung/fire_alarm/20240727
+man_fire=False
+man_lat=38.68
+man_lon=-78.35
+man_lvl=200
+
+path_frp=/groups/ESS/whung/Alldata/RAVE_3km_v2
+path_elv=/groups/ESS/whung/Alldata/GMCollections
+path_ast=/groups/ESS/whung/Alldata/Global_canopy/grid1km
+path_ch=/groups/ESS/whung/Alldata/Global_canopy/grid1km
+path_pai=/groups/ESS/whung/Alldata/Global_canopy/grid1km
+path_mete=/scratch/whung/fire_alarm/20200820

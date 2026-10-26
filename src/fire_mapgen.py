@@ -23,10 +23,10 @@ def fire_mapper(f_ori, f_predic, opt_intensity):
     frame_lat = readin["frame_lat"][:]  # frame x lat x lon
     frame_lon = readin["frame_lon"][:]  # frame x lat x lon
 
-    if opt_intensity == 0:
-        frame_fire = readin["frame_predic_post"][:, :, :, 0]  # frame x lat x lon
-    elif opt_intensity == 1:
+    if opt_intensity:  # use intensity prediction
         frame_fire = readin["frame_predic_frp"][:, :, :, 0]  # frame x lat x lon
+    else:  # use spread prediction
+        frame_fire = readin["frame_predic_post"][:, :, :, 0]  # frame x lat x lon
     readin.close()
 
     # ---- Fire Mapping ----

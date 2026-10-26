@@ -15,7 +15,11 @@ def main_driver(f_input, f_output, forecast_hour):
     # ---- Reading Data ----
     # non-scaled input
     readin = Dataset(f_input)
-    inputs = readin["input_noscale"][:]
+    inputs = readin["input_noscale"][:]  # [:, :, :, readin["INPUTLIST"][:] != "fuel"]
+    # fuel   = inputs[:, :, :, readin["INPUTLIST"][:] == "fuel"][:, :, :, 0]
+    vtype = readin["input_noscale"][:, :, :, readin["INPUTLIST"][:] == "ast"][
+        :, :, :, 0
+    ]
     readin.close()
     del readin
 
@@ -28,11 +32,19 @@ def main_driver(f_input, f_output, forecast_hour):
     # ---- Intensity prediction ----
     model = xgb.XGBRegressor()
     model.load_model("./model/intensity_model_rf.json")
+    print(model.get_params())
 
     fire = np.copy(guess)
     mask = fire == 1
-    fire[mask] = model.predict(inputs[mask, :].reshape(-1, inputs.shape[-1]))
-    fire[fire < 1] = 0
+    if inputs[mask, :].size != 0:
+        fire[mask] = model.predict(inputs[mask, :].reshape(-1, inputs.shape[-1]))
+        fire[fire < 1] = 0
+
+    # ---- Water mask ----
+    fire[vtype == 17] = 0
+
+    # ---- Low fuel fraction ----
+    # fire[fuel < 0.1] = 0
 
     print("---- Intensity prediction:")
     print("Fire location prediction:", guess.shape, np.min(guess), np.max(guess))

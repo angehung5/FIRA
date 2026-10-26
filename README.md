@@ -1,19 +1,13 @@
 # Fire Intensity and spRead forecAst (FIRA)
 
 Repository for a fire spread forecast model, generating hourly fire radiative power (FRP) prediction for air quality forecasting applications.
+Please check `requirement.txt` for required python libraries.
 
-## Required Python libraries
-
-- Keras
-- Matplotlib (for output plotting only)
-- MetPy
-- netCDF4
-- NumPy
-- pandas
-- SciPy
-- Tensorflow
-- xarray
-- XGBoost
+## Log
+Sep 2024: Repository initialized; FIRAv1
+Oct 2026: FIRAv2
+    - Update input variables and model configurations
+    - Add fuel parameters (fai, ff)
 
 ## Components
 
@@ -22,12 +16,15 @@ Trained machine learning models are available in `model/fira_models.zip`
 | **Source Code (Python Script)**   | **Script Description**                                                                                             |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `fire_model`                      | Main driver of FIRA                                                                                                |
-| `rave_preprocessor`               | Data preprocessor for initial FRP data from RAVE                                                                   |
+| `frp_preprocessor`                | Data preprocessor for initial FRP data                                                                             |
 | `fire_inputgen`                   | Model input generator, including data re-gridding, fire frame selection and filtering, scaling, and normalization  |
 | `fire_forecast`                   | Driver for fire spread prediction model                                                                            |
 | `fire_intensity`                  | Driver for fire intensity prediction model                                                                         |
 | `fire_mapgen`                     | Fire mapper for grided FRP prediction generation                                                                   |
 | `fire_evaluation`                 | Visualization tool for grided FRP prediction                                                                       |
+| `mete_reader`                     | Reader toolkit for meteorological fields                                                                           |
+| `fuel_consumption_cal`            | Estimation tool for fuel consumption                                                                               |
+| `fuel_weight`                     | Estimation tool for fuel weight                                                                                    |
 
 ## Namelist settings
 
@@ -37,12 +34,13 @@ Trained machine learning models are available in `model/fira_models.zip`
 | `frp_input`         | Filename of FRP input files                                            |
 | `model_input`       | Filename of FIRA input files                                           |
 | `model_output`      | Filename of FIRA output files                                          |
-| FRP source option                                                                            |
-| `frp_source`        | Option of the source of initial FRP data (0: RAVE)                     |
+| Data source option                                                                           |
+| `frp_source`        | Option of the source of initial FRP data (0: RAVE, 1: ABI L2)          |
+| `mete_source`       | Option of the source of meteorological data (0: HRRR, 1: RAP, 2: GFS, 3: WoFS)       |
 | Simulation time settings                                                                     |
-| `time_start`        | Simulation start time in UTC (YYYYMMDDHH00)                            |
-| `time_end`          | Simulation end time in UTC (YYYYMMDDHH00)                              |
-| `time_freq`         | Temporal frequency (in hour) of simulation                             |
+| `time_start`        | Simulation start time in UTC (YYYYMMDDHHMM)                            |
+| `time_end`          | Simulation end time in UTC (YYYYMMDDHHMM)                              |
+| `time_freq`         | Temporal frequency of simulation, unit depends on input                |
 | Simulation domain settings                                                                   |
 | `lat_lower_left`    | Latitude of the lower left point of model domain (degree)              |
 | `lat_upper_right`   | Latitude of the upper right point of model domain (degree)             |
@@ -55,6 +53,11 @@ Trained machine learning models are available in `model/fira_models.zip`
 | `opt_intensity`     | Option for fire intensity prediction model (0: off, 1: on)             |
 | `opt_mapgen`        | Option for fire mapper (0: off, 1: on)                                 |
 | `opt_evaluation`    | Option for result visualization (0: off, 1: on)                        |
+| Spread simulation settings                                                                   |
+| `min_spread_thres`  | Threshold of possible fire occurrence (default=0.2). Predictions equal to or higher than the threshold are identified as active fires                                      |
+| `fuel_consume`      | Option for dynamic fuel consumption (0: off, 1: on)                    |
+| `fuel_max`          | Maximum fuel fraction (default=1)                                      |
+| `fuel_min`          | Maximum fuel fraction (default=0)                                      |
 | Manual/Fake fire settings                                                                    |
 | `man_fire`          | Option for adding manual fire (0: off, 1: on)                          |
 | `man_lat`           | Latitude of manual fires, separated by `,` (degree)                    |
@@ -73,7 +76,10 @@ Trained machine learning models are available in `model/fira_models.zip`
 1. Filename format: `[input name].[start time].f[simuluation time].nc`
    `input name` and `start time` can be specified in namelist.
 
-2. Input netCDF file components:
+2. Dynamic fuel map: `fuel.restart.f[simuluation time].txt`
+   They are intermediate files generated during the simulation.
+
+3. Input netcdf file components:
 
 | **Variable Name**   | **Variable Description**                                                           |
 | ------------------- | ---------------------------------------------------------------------------------- |
@@ -91,19 +97,17 @@ Trained machine learning models are available in `model/fira_models.zip`
 | Fire characteristics                                                                                                                            |
 | `frp`             | Fire radiative power (MW)                 | [RAVE](https://sites.google.com/view/rave-emission/)                            |
 | Fuel/surface characteristics                                                                                                                    |
-| `elv`             | Terrain elevation (m)                     | GriddingMachine/[Yamazaki et al. (2017)](https://doi.org/10.1002/2017GL072874)  |
-| `fh`              | Forest height (m)                         | GEDI+Landsat ([GLAD](https://glad.umd.edu/dataset/GLCLUC2020))                  |
-| `vhi`             | Vegetation health index (dimensionless)   | [VIIRS VHP](https://www.ospo.noaa.gov/products/land/vvhp/)                      |
-| `ast`             | Surface type (dimensionless)              | [VIIRS AST](https://www.star.nesdis.noaa.gov/jpss/st.php)                       |
-| Date/Time                                                                                                                                       |
-| `doy`             | Day of year (dimensionless)               | N/A                                                                             |
-| `hour`            | Hour of the day                           | N/A                                                                             |
+| `ch`              | Canopy height (m)                         | GEDI ([Lang et al.](https://langnico.github.io/globalcanopyheight/))            |
+| `st`              | Surface type (dimensionless)              | [VIIRS AST](https://www.star.nesdis.noaa.gov/jpss/st.php)                       |
+| `fai`             | Fuel area index (m2/m2)                   | [VIIRS LAI](https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C01472); [MS Global building footprint](https://github.com/microsoft/globalmlbuildingfootprints) |
+| `ff`              | Fuel fraction (dimensionless)             | N/A                                                                             |
 | Meteorological conditions                                                                                                                       |
 | `t2m`             | 2-meter temperature                       | [HRRR](https://rapidrefresh.noaa.gov/hrrr/)/[University of Utah](https://home.chpc.utah.edu/~u0553130/Brian_Blaylock/cgi-bin/hrrr_download.cgi)   |
-| `sh2 `            | 2-meter specific humidity                 | [HRRR](https://rapidrefresh.noaa.gov/hrrr/)/[University of Utah](https://home.chpc.utah.edu/~u0553130/Brian_Blaylock/cgi-bin/hrrr_download.cgi)   |
+| `vpd`             | 2-meter Vapor pressure deficit            | [HRRR](https://rapidrefresh.noaa.gov/hrrr/)/[University of Utah](https://home.chpc.utah.edu/~u0553130/Brian_Blaylock/cgi-bin/hrrr_download.cgi); Estimated based on [Chiodi et al., 2021](https://doi.org/10.1029/2021GL092830)   |
 | `prate`           | Precipitation rate (mm h-1)               | [HRRR](https://rapidrefresh.noaa.gov/hrrr/)/[University of Utah](https://home.chpc.utah.edu/~u0553130/Brian_Blaylock/cgi-bin/hrrr_download.cgi)   |
 | `wd`              | 10-meter wind direction (degree)          | [HRRR](https://rapidrefresh.noaa.gov/hrrr/)/[University of Utah](https://home.chpc.utah.edu/~u0553130/Brian_Blaylock/cgi-bin/hrrr_download.cgi)   |
 | `ws`              | 10-meter wind speed (m s-1)               | [HRRR](https://rapidrefresh.noaa.gov/hrrr/)/[University of Utah](https://home.chpc.utah.edu/~u0553130/Brian_Blaylock/cgi-bin/hrrr_download.cgi)   |
+| `soilw`           | Soil mositure (m3/m3)                     | [HRRR](https://rapidrefresh.noaa.gov/hrrr/)/[University of Utah](https://home.chpc.utah.edu/~u0553130/Brian_Blaylock/cgi-bin/hrrr_download.cgi)   |
 
 ## Outputs
 
@@ -124,6 +128,10 @@ Trained machine learning models are available in `model/fira_models.zip`
 | `grid_predic`       | Gridded FRP prediction (MW)                                            |
 | `grid_lat`          | Latitude of gridded FRP prediction (degree)                            |
 | `grid_lon`          | Longitude of gridded FRP prediction (degree)                           |
+
+## Citation
+
+Hung et al. (2025). Fire Intensity and spRead forecAst (FIRA): A machine learning based fire spread prediction model for air quality forecasting application. GeoHealth, 9, e2024GH001253. https://doi.org/10.1029/2024GH001253.
 
 ## Disclaimer
 

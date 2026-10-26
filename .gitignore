@@ -2,21 +2,34 @@
 /*.sh
 /*.out
 /.pre-commit-config.yaml
+/.github/workflow/
+/fix/budiling_area_index_2017_2022.nc
 
 # ML model files
+/model/v1/
+/model/*.zip
 /model/intensity_model_rf.json
 /model/spread_model.h5
 /model/model_normalization_coef.txt
 
 # Input folder
 /input/20*/
+/input/FIRA_v1/
+/input/thres_0.4/
 /input/namelist_*
+/input/*.jpg
 
 # Output folder
 /output/20*/
+/output/FIRA_v1/
+/output/thres_0.4/
+/output/*.png
 
 # Source code
 /src/__pycache__/
+/src/fire_inputgen_ori.py
 /src/post_analysis.py
 /src/model_score.py
 /src/rave_emission_cal.py
+/src/urban_map_plot.py
+/src/fuel_analysis.py

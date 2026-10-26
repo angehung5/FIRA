@@ -36,7 +36,7 @@ def frame_upscaling_test(DATA):
     resize = 8
     XX = DATA.shape[1]
     YY = DATA.shape[2]
-    return tf.image.resize(DATA, [XX * resize, YY * resize], method="nearest")
+    return tf.image.resize(DATA, [XX * resize, YY * resize], method="bilinear")
 
 
 def loss_function(w0, normalized_zero):
@@ -54,7 +54,7 @@ def loss_function(w0, normalized_zero):
 
 def scheduler(epoch, lr):
     if (epoch != 0) & (epoch % 100 == 0):
-        return lr * 0.7
+        return lr * 0.5
     else:
         return lr
 
@@ -62,15 +62,16 @@ def scheduler(epoch, lr):
 def spread_forecast(f_input, f_output):
     # ---- Settings ----
     # constants
-    learning_rate = 1e-4
+    learning_rate = 2e-4
     nweight = 0.6  # loss weight for zeros
+    # thres = 0.2  # threshold for spread possibility
 
-    # variable list
-    firelist = ["frp"]
-    geolist = ["lat", "lon", "elv", "ast", "doy", "hour"]
-    veglist = ["fh", "vhi"]
-    metlist = ["t2m", "sh2", "prate", "wd", "ws"]
-    INPUTLIST = firelist + geolist + veglist + metlist
+    # manual fire extinguisher
+    namelist = pd.read_csv("./input/namelist", header=None, delimiter="=")
+    namelist = namelist.rename(columns={0: "key", 1: "value"}).set_index("key")
+    namelist = namelist.to_dict()["value"]
+    extinguisher = float(namelist["fuel_min"])
+    thres = float(namelist["min_spread_thres"])
 
     # ---- Reading Inputs ----
     readin = Dataset(f_input)
@@ -81,6 +82,9 @@ def spread_forecast(f_input, f_output):
     X_lon = readin["frame_lon"][:]
     X_initial = readin["input"][:]
     INPUTLIST = readin["INPUTLIST"][:]
+    fuel = readin["input_noscale"][:, :, :, INPUTLIST == "fuel"][:, :, :, 0]
+    # X_initial = X_initial[:, :, :, INPUTLIST != "fuel"]
+    # INPUTLIST = INPUTLIST[INPUTLIST != "fuel"]
     NN = len(INPUTLIST)
     readin.close()
 
@@ -88,6 +92,7 @@ def spread_forecast(f_input, f_output):
     print(INPUTLIST)
     print("---- Input data:")
     print(X_initial.shape, np.min(X_initial), np.max(X_initial))
+    print(fuel.shape, np.min(fuel), np.max(fuel))
 
     # normalization coef
     a1, b1, a2, b2 = normalization_coef()  # 1: input/2: output
@@ -128,18 +133,19 @@ def spread_forecast(f_input, f_output):
     Y = model.predict(X)
     Y = np.array(Y)
 
-    predic = np.copy(Y)
-    predic[predic >= 0.2] = 1
-    predic[predic < 0.2] = 0
-
     # downscaling
+    predic = tf.convert_to_tensor(Y)
+    predic = tf.image.resize(predic, [nlat, nlon], method="bilinear")
+    predic = predic.numpy()
+    predic[predic >= thres] = 1
+    predic[predic < thres] = 0
+
     Y = tf.convert_to_tensor(Y)
-    Y = tf.image.resize(Y, [nlat, nlon], method="nearest")
+    Y = tf.image.resize(Y, [nlat, nlon], method="bilinear")
     Y = Y.numpy()
 
-    predic = tf.convert_to_tensor(predic)
-    predic = tf.image.resize(predic, [nlat, nlon], method="nearest")
-    predic = predic.numpy()
+    # ---- Manual fire extinguisher ----
+    predic[fuel < extinguisher] = 0
 
     print("---- Spread prediction:")
     print("Original output:", Y.shape, np.min(Y), np.max(Y))
